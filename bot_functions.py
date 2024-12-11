@@ -7,7 +7,14 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from functools import partial
+
 import pytz
+
+from settings import *
+from bd_functions import get_student
+
 
 TEACHER_ID = 5086356786
 TEACHER_EMAIL = 'rinigudini@gmail.com'
@@ -34,8 +41,27 @@ CREDENTIALS_FILE = r'C:\dev_py\chemical_tutor\calendar_project\project\chemical-
 # CALENDAR_ID = 'cheb.ilya05@yandex.ru'
 CALENDAR_ID = TEACHER_EMAIL
 
+
+
+async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждый час
+    scheduler.start()
+
+    keyboard = [
+        [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
+        [InlineKeyboardButton('Занятия в этом месяце', callback_data='month')],
+    ]
+
+    # Создаем разметку для кнопок
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    # Отправляем сообщение с инлайн кнопками
+
+    second_message = 'Есть что-то, что ты бы хотел(-ла) сейчас узнать?'
+    await update.message.reply_text(second_message, reply_markup=reply_markup)
+
 # Попытка получить события из календаря
-async def get_kids_lessons(time_period, user_name):
+async def get_kids_lessons(time_period, student_tg_id):
     try:
         credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE)
         service = build('calendar', 'v3', credentials=credentials)
@@ -43,7 +69,7 @@ async def get_kids_lessons(time_period, user_name):
         # Устанавливаем временные рамки для запроса (текущая дата и дата через 7 дней)
         now = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).isoformat() + 'Z'  # Текущая дата и время в формате UTC+3
         week_later = (datetime.datetime.utcnow() + datetime.timedelta(days=time_period, hours=3)).isoformat() + 'Z'
-        logging.info(f'ВРЕМЯ {now}')
+        # logging.info(f'ВРЕМЯ {now}')
         # Получаем события только на неделю вперед
         events_result = service.events().list(
             calendarId=CALENDAR_ID,
@@ -54,114 +80,126 @@ async def get_kids_lessons(time_period, user_name):
         ).execute()
         
         events = events_result.get('items', [])
-
-        if not events:
-            return None, 0
-        else:
-            events_list = []
-            events_count = 0
-            for event in events:
-
-                event_description = event['description']
-                logging.info(f'user_name = {user_name} and descr = {event_description}')
-                
-                if user_name in event_description:
-                    kid_name = event['description'].split(',')[1]                    
-                    
-                    
-                    start_time = event['start']['dateTime']
-                    end_time = event['end']['dateTime']
-
-                    start_correct_time = await time_get(start_time)
-                    end_correct_time = await time_get(end_time)
-                    
-                    full_inf = [start_correct_time, end_correct_time, kid_name]
-
-                    events_list.append(full_inf)
-                    events_count += 1
-
-        return events_list, events_count
-
-
-    except Exception as e:
-        print(f'Ошибка доступа: {str(e)}')
-
-
-# Попытка получить события из календаря
-async def get_lessons_for_teacher(time_period, user_name):
-    try:
-        credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE)
-        service = build('calendar', 'v3', credentials=credentials)
-
-        # Устанавливаем временные рамки для запроса (текущая дата и дата через 7 дней)
-        now = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).isoformat() + 'Z'  # Текущая дата и время в формате UTC+3
-        week_later = (datetime.datetime.utcnow() + datetime.timedelta(days=time_period, hours=3)).isoformat() + 'Z'
-
-        # Получаем события только на неделю вперед
-        events_result = service.events().list(
-            calendarId=CALENDAR_ID,
-            timeMin=now,
-            timeMax=week_later,
-            singleEvents=True,
-            orderBy='startTime'
-        ).execute()
         
-        events = events_result.get('items', [])
+        student = await get_student(student_tg_id)
+        # logging.info(f'STUDENT {student}')
+        first_name = student[1]
+        last_name = student[2]
 
         if not events:
-            return None, 0
+            return (None, 0)
         else:
             events_list = []
             events_count = 0
             for event in events:
                 event_name = event['summary']
+                # logging.info(f'event = {event_name}')
 
-                if 'УРОК' in event_name:
+                if 'УРОК' in event_name and (first_name and last_name) in event_name:
                     kid_name = event_name.split('; ')[1]
-
+                    
+                    logging.info(f'kid_name {kid_name}')
+                    
                     start_time = event['start']['dateTime']
                     end_time = event['end']['dateTime']
 
                     start_correct_time = await time_get(start_time)
                     end_correct_time = await time_get(end_time)
-
-                    full_inf = [start_correct_time, end_correct_time, kid_name]
-                    # full_inf = await information_collector(event)
-                    # full_inf.append(kid_name)
                     
+                    full_inf = [start_correct_time, end_correct_time, kid_name]
+
                     events_list.append(full_inf)
                     events_count += 1
-        return events_list, events_count
+        logging.info(f'RETURN {events_list} {events_count}')
+        return [events_list, events_count]
 
 
     except Exception as e:
-        print(f'Ошибка доступа: {str(e)}')
+        logging.error(f'ошибка {e}')
 
 
 async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_inf = update.effective_user
     user_name = user_inf['username']
-
-    kids_lessons_if, lessons_count = await get_kids_lessons(time_period=1, user_name=user_name)
-    start_inf = kids_lessons_if[0]
-    start_day = start_inf['day']
-    start_hour = start_inf['hour']
-
     user_id = user_inf.id
-    await context.bot.send_message(chat_id=user_id, text='test 10 seconds')
+    # await context.bot.send_message(chat_id=user_id, text='проверка связи')
+    logging.info('Проверка связи')
+
+    kids_lessons_if, lessons_count = await get_kids_lessons(time_period=1, student_tg_id=user_id)
+    if lessons_count.__eq__(0):
+        pass
+    else:
+        day, hours, minutes = await get_current_time_formatted()
+             
+        start_inf = kids_lessons_if[0][0]
+        logging.info(f'DAY {start_inf}')
+        start_day = int(start_inf['day'])
+        
+        start_hour_text = start_inf['hours']
+        start_hour = int(start_hour_text)
+        start_minutes_text = start_inf['minutes']
+        start_minutes = int(start_minutes_text)
+
+        if 'warning_hour_send' in context.user_data:
+            logging.info('hour_check')
+            time_lesson = f'{start_day}{start_hour}'
+            if time_lesson.__ne__(context.user_data['warning_hour_send']):
+                context.user_data.pop('warning_hour_send')
+        if 'warning_day_send' in context.user_data:
+            logging.info('day_check')
+            time_lesson = f'{start_day}{start_hour}'
+            if time_lesson.__ne__(context.user_data['warning_day_send']):
+                context.user_data.pop('warning_day_send')
+
+        if start_day-day == 1:
+
+            if (24-hours) + start_hour <= 24 and 'warning_day_send' not in context.user_data:
+                logging.info('one day')
+                hours_delta = (24-hours) + start_hour
+                if start_minutes > minutes:
+                    minutes_delta = start_minutes-minutes
+                elif start_minutes < minutes:
+                    hours_delta -= 1
+                    minutes_delta = (60 - minutes) + start_minutes
+                else:
+                    minutes_delta = 0
+
+                warning_text = (
+                f'❗НЕ ЗАБУДЬ❗\n\n'
+                f'У тебя завтра занятие с преподавателем по Химии.\n'
+                f'Начало в {start_hour_text}:{start_minutes_text}.\n'
+                f'То есть, через {hours_delta} часов и {minutes_delta} минут'
+                )
+                await context.bot.send_message(chat_id=user_id, text=warning_text)
+                context.user_data['warning_day_send'] = f'{start_day}{start_hour}'
+        
+        elif start_day-day == 0:
+            logging.info('time_check')
 
 
-def get_current_hour_moscow():
-    # Устанавливаем часовой пояс для Москвы
-    moscow_tz = pytz.timezone('Europe/Moscow')
+            if start_hour - hours == 0 and 'warning_hour_send' not in context.user_data:
+                logging.info('one hour')
+                minutes_delta = start_minutes-minutes
+                warning_text = (
+                f'❗❗❗НЕ ЗАБУДЬ❗❗❗\n\n'
+                f'У тебя скоро занятие с преподавателем по Химии.\n'
+                f'Начало в {start_hour_text}:{start_minutes_text}.\n'
+                f'То есть, через {minutes_delta}'
+                )
+                await context.bot.send_message(chat_id=user_id, text=warning_text)
+                context.user_data['warning_hour_send'] = f'{start_day}{start_hour}'
+
+
+async def get_current_time_formatted():
+    # Получаем текущее время
+    now = datetime.datetime.now()
     
-    # Получаем текущее время в московском часовом поясе
-    moscow_time = datetime.now(moscow_tz)
+    # Форматируем время в нужный формат
+    day = int(now.strftime("%d"))
+    hours = int(now.strftime("%H"))
+    minutes = int(now.strftime("%M"))
     
-    # Извлекаем текущий час
-    current_hour = moscow_time.hour
-    
-    return current_hour
+    return day, hours, minutes
 
 
 async def message_creator(start_event, end_event):
@@ -186,29 +224,29 @@ async def message_creator(start_event, end_event):
 async def time_get(time_dt_f):
 
                     
-                    start_time_dt = datetime.datetime.fromisoformat(time_dt_f)
+    start_time_dt = datetime.datetime.fromisoformat(time_dt_f)
 
-                    start_hours = start_time_dt.strftime("%H")
-                    start_minutes = start_time_dt.strftime("%M")
-                    
-                    start_day = start_time_dt.strftime("%d")
-                    if start_day[0].__eq__('0'):
-                        start_day = start_day[1]
+    start_hours = start_time_dt.strftime("%H")
+    start_minutes = start_time_dt.strftime("%M")
+    
+    start_day = start_time_dt.strftime("%d")
+    if start_day[0].__eq__('0'):
+        start_day = start_day[1]
 
-                    start_month = start_time_dt.strftime("%B")
-                    start_years = start_time_dt.strftime("%Y")
-                    start_month_rus = months_translation[start_month]
-                    
-                    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus} {start_years} года.'
-                    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus}.'
-                    
-                    inf = {
-                         'hours': start_hours,
-                         'minutes': start_minutes,
-                         'day': start_day,
-                         'month': start_month_rus,
-                    }
-                    return inf
+    start_month = start_time_dt.strftime("%B")
+    start_years = start_time_dt.strftime("%Y")
+    start_month_rus = months_translation[start_month]
+    
+    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus} {start_years} года.'
+    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus}.'
+    
+    inf = {
+            'hours': start_hours,
+            'minutes': start_minutes,
+            'day': start_day,
+            'month': start_month_rus,
+    }
+    return inf
 
 
 async def parse_date(date_str):
