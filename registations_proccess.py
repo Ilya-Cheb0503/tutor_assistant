@@ -57,9 +57,14 @@ async def confirmation_procces(context, update):
         user_id = update.effective_user.id
         name, sername = context.user_data['full_name']
 
-        await add_student (name, sername, user_id)
+        student = await get_student(user_id)
+        if student:
+            await update_student(user_id, name, sername)
+        else:
+            await add_student(name, sername, user_id)
         keyboard = [
             ['Расписание'],
+            ['Изменить имя']
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(f'Регистрация успешно завершена!\nРад знакомству, {name}', reply_markup=reply_markup)

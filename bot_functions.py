@@ -14,6 +14,7 @@ import pytz
 
 from settings import *
 from bd_functions import get_student
+from notifications import *
 
 
 TEACHER_ID = 5086356786
@@ -45,12 +46,11 @@ CALENDAR_ID = TEACHER_EMAIL
 
 async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждый час
+    scheduler.add_job(partial(test_f, update, context), 'interval', seconds=10)  # Запрашиваем события каждый час
     scheduler.start()
 
     keyboard = [
         [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
-        [InlineKeyboardButton('Занятия в этом месяце', callback_data='month')],
     ]
 
     # Создаем разметку для кнопок
@@ -122,7 +122,6 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_inf = update.effective_user
     user_name = user_inf['username']
     user_id = user_inf.id
-    # await context.bot.send_message(chat_id=user_id, text='проверка связи')
     logging.info('Проверка связи')
 
     kids_lessons_if, lessons_count = await get_kids_lessons(time_period=1, student_tg_id=user_id)
@@ -130,7 +129,19 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
     else:
         day, hours, minutes = await get_current_time_formatted()
-             
+        user_id_str = str(user_id)
+        notifications = await load_notifications()
+        if user_id_str not in notifications:
+            logging.info(f'Хуйня какая-то: {notifications},\n{user_id},\n{user_id not in notifications}')
+            notifications[user_id_str] = {
+                'warning_day_message': None,
+                'warning_hour_message': None
+            }
+            
+        warnings = notifications[user_id_str]
+        warning_hour_message = warnings['warning_hour_message']
+        warning_day_message = warnings['warning_day_message']
+
         start_inf = kids_lessons_if[0][0]
         logging.info(f'DAY {start_inf}')
         start_day = int(start_inf['day'])
@@ -140,20 +151,15 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
         start_minutes_text = start_inf['minutes']
         start_minutes = int(start_minutes_text)
 
-        if 'warning_hour_send' in context.user_data:
-            logging.info('hour_check')
-            time_lesson = f'{start_day}{start_hour}'
-            if time_lesson.__ne__(context.user_data['warning_hour_send']):
-                context.user_data.pop('warning_hour_send')
-        if 'warning_day_send' in context.user_data:
-            logging.info('day_check')
-            time_lesson = f'{start_day}{start_hour}'
-            if time_lesson.__ne__(context.user_data['warning_day_send']):
-                context.user_data.pop('warning_day_send')
+        time_lesson = f'{start_day}{start_hour}'
+
+        day_check = time_lesson.__ne__(warning_day_message)
+        hour_check = time_lesson.__ne__(warning_hour_message)
 
         if start_day-day == 1:
-
-            if (24-hours) + start_hour <= 24 and 'warning_day_send' not in context.user_data:
+            logging.info('ПРОВЕУРКА ДНЯ')
+            if (24-hours) + start_hour <= 24 and day_check:
+                logging.info('ПРОВЕУРКА ДНЯ 222')
                 logging.info('one day')
                 hours_delta = (24-hours) + start_hour
                 if start_minutes > minutes:
@@ -165,29 +171,33 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     minutes_delta = 0
 
                 warning_text = (
-                f'❗НЕ ЗАБУДЬ❗\n\n'
+                f'❗️ НАПОМИНАЮ ❗\n\n'
                 f'У тебя завтра занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через {hours_delta} часов и {minutes_delta} минут'
+                f'То есть, через {hours_delta} часов и {minutes_delta} минут\n\n'
+                'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=user_id, text=warning_text)
-                context.user_data['warning_day_send'] = f'{start_day}{start_hour}'
+                notifications[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
         
         elif start_day-day == 0:
-            logging.info('time_check')
+            logging.info('ПРОВЕУРКА ЧАСА')
 
-
-            if start_hour - hours == 0 and 'warning_hour_send' not in context.user_data:
+            if start_hour - hours == 0 and hour_check:
+                logging.info('ПРОВЕУРКА ЧАСА 222')
                 logging.info('one hour')
                 minutes_delta = start_minutes-minutes
                 warning_text = (
-                f'❗❗❗НЕ ЗАБУДЬ❗❗❗\n\n'
+                f'❗❗ НАПОМИНАЮ ❗❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через {minutes_delta}'
+                f'То есть, через {minutes_delta}\n\n'
+                'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=user_id, text=warning_text)
-                context.user_data['warning_hour_send'] = f'{start_day}{start_hour}'
+                notifications[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}' 
+    
+    await save_notifications(notifications)
 
 
 async def get_current_time_formatted():

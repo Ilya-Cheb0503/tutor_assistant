@@ -35,7 +35,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     options = {
         'week': [7, 'На этой неделе', 'Попробуй проверить расписание на месяц.'],
-        'month': [30, 'В этом месяце', 'Можешь отдыхать, ты и так молодец ;)'],
     }
 
     query = update.callback_query
@@ -70,11 +69,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f'{finish_lesson}.'
         )
 
-    # await context.bot.send_message(chat_id=user_id, text=response_dayly)
-    
     keyboard = [
         [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
-        [InlineKeyboardButton('Занятия в этом месяце', callback_data='month')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -94,6 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     keyboard = [
             ['Расписание'],
+            ['Изменить имя']
         ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -102,42 +99,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not student:
         context.user_data['reg_status'] = 'start'
         await context.bot.send_message(chat_id=user_id, text=message_text)
-        # await update.message.reply_text(message_text, reply_markup=reply_markup)
         await register_proccess(context, update)
     
     else:
         name = student[1]
         message_text = f'Привет, {name}!'
         await update.message.reply_text(message_text, reply_markup=reply_markup)
-        # await hi_again(update, context)
 
 
-# async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-#     scheduler = AsyncIOScheduler()
-#     scheduler.add_job(partial(test_f, update, context), 'interval', seconds=10)  # Запрашиваем события каждый час
-#     scheduler.start()
-
-#     keyboard = [
-#         [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
-#         [InlineKeyboardButton('Занятия в этом месяце', callback_data='month')],
-#     ]
-
-#     # Создаем разметку для кнопок
-#     reply_markup = InlineKeyboardMarkup(keyboard)
-#     # Отправляем сообщение с инлайн кнопками
-
-#     second_message = 'Есть что-то, что ты бы хотел(-ла) сейчас узнать?'
-#     await update.message.reply_text(second_message, reply_markup=reply_markup)
-
-
-# Функция для обработки нажатий кнопок
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     current_text = update.message.text
     if 'reg_status' in context.user_data:
         await register_proccess(context, update)
     
-    if current_text.__eq__('Расписание'):
+    elif current_text.__eq__('Расписание'):
         await hi_again(update, context)
+
+    elif current_text.__eq__('Изменить имя'):
+        context.user_data['reg_status'] = 'start'
+        await register_proccess(context, update)
 
 
 async def main(telegram_bot_token) -> None:
@@ -146,7 +126,6 @@ async def main(telegram_bot_token) -> None:
 
     application = Application.builder().token(telegram_bot_token).build()
 
-    # Регистрируем обработчики команд и сообщений
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CallbackQueryHandler(button_callback))  # Добавляем обработчик для инлайн кнопок
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND | filters.PHOTO, button_handler))
