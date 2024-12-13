@@ -46,7 +46,7 @@ CALENDAR_ID = TEACHER_EMAIL
 
 async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(test_f, update, context), 'interval', seconds=10)  # Запрашиваем события каждый час
+    scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждый час
     scheduler.start()
 
     keyboard = [
@@ -197,7 +197,7 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=user_id, text=warning_text)
                 notifications[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}' 
     
-    await save_notifications(notifications)
+        await save_notifications(notifications)
 
 
 async def get_current_time_formatted():
