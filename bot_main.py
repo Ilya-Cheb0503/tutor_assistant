@@ -34,7 +34,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_name = user_inf.username
 
     options = {
-        'week': [7, 'На этой неделе', 'Попробуй проверить расписание на месяц.'],
+        'week': [7, 'На этой неделе', 'Можешь отдыхать, ты и так молодец ;)'],
     }
 
     query = update.callback_query
