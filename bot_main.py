@@ -17,15 +17,8 @@ from settings import *
 from bot_functions import *
 from bd_functions import add_student, get_student, update_student
 from registations_proccess import *
+from constants import * 
 
-TEACHER_ID = 5086356786
-TEACHER_EMAIL = 'rinigudini@gmail.com'
-
-
-
-# Хранение пользователей
-users = set()
-admins_id = []
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
@@ -33,19 +26,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = user_inf.id
     user_name = user_inf.username
 
-    options = {
-        'week': [7, 'На этой неделе', 'Можешь отдыхать, ты и так молодец ;)'],
-    }
 
     query = update.callback_query
     answer = await query.answer()  # Подтверждаем нажатие кнопки
     data = query.data
 
 
-    choosed_option = options[data]
-    days_count = choosed_option[0]
-    response_start = choosed_option[1]
-    response_none_lessons = choosed_option[2]
+    # choosed_option = options[data]
+    days_count = 7
+    response_start = 'В ближайшее время'
+    response_none_lessons = 'Можешь отдыхать, ты и так молодец ;)'
 
     lessons_informations, lessons_count = await get_kids_lessons(days_count, student_tg_id=user_id)
     
@@ -70,7 +60,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
 
     keyboard = [
-        [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
+        [InlineKeyboardButton('Ближайшее занятие', callback_data='near_lesson')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 

@@ -16,9 +16,7 @@ from settings import *
 from bd_functions import get_student
 from notifications import *
 
-
-TEACHER_ID = 5086356786
-TEACHER_EMAIL = 'rinigudini@gmail.com'
+from constants import *
 
 months_translation = {
     "January": "Января",
@@ -36,21 +34,13 @@ months_translation = {
 }
 
 
-# Путь к вашему файлу credentials.json
-CREDENTIALS_FILE = r'C:\dev_py\chemical_tutor\calendar_project\project\chemical-tutor-ec8a32045bb2.json'
-# ID вашего календаря (можно использовать 'primary' для основного календаря)
-# CALENDAR_ID = 'cheb.ilya05@yandex.ru'
-CALENDAR_ID = TEACHER_EMAIL
-
-
-
 async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждый час
     scheduler.start()
 
     keyboard = [
-        [InlineKeyboardButton('Занятия на этой неделе', callback_data='week')],
+        [InlineKeyboardButton('Ближайшее занятие', callback_data='near_lesson')],
     ]
 
     # Создаем разметку для кнопок
