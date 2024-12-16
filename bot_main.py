@@ -56,7 +56,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f'{response_start} у тебя есть занятия.\n'
             f'Ближайшее состоится {day_start_inf}\n\n'
             f'{start_lesson}.\n'
-            f'{finish_lesson}.'
+            f'{finish_lesson}.\n\n'
+            f'🕑 Время занятия указано по Московскому часовому поясу.'
         )
 
     keyboard = [
