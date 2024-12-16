@@ -47,7 +47,7 @@ async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
     # Отправляем сообщение с инлайн кнопками
 
-    second_message = 'Есть что-то, что ты бы хотел(-ла) сейчас узнать?'
+    second_message = 'Чтобы узнать дату ближайшего занятия, нажми на кнопку ниже'
     await update.message.reply_text(second_message, reply_markup=reply_markup)
 
 # Попытка получить события из календаря
