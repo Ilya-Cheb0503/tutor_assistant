@@ -59,8 +59,8 @@ async def get_kids_lessons(time_period, student_tg_id):
         service = build('calendar', 'v3', credentials=credentials)
 
         # Устанавливаем временные рамки для запроса (текущая дата и дата через 7 дней)
-        now = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).isoformat() + 'Z'  # Текущая дата и время в формате UTC+3
-        week_later = (datetime.datetime.utcnow() + datetime.timedelta(days=time_period, hours=3)).isoformat() + 'Z'
+        now = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).isoformat() + '+03:00'  # Текущая дата и время в формате UTC+3
+        week_later = (datetime.datetime.utcnow() + datetime.timedelta(days=time_period, hours=3)).isoformat() + '+03:00'
         # logging.info(f'ВРЕМЯ {now}')
         # Получаем события только на неделю вперед
         events_result = service.events().list(
