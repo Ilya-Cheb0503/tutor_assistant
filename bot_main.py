@@ -71,7 +71,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_inf = update.effective_user
     user_id = user_inf.id
-
+    if str(user_id).__eq__('2091023767'):
+        logging.info('ЗАПУСК УВЕДОМЛЕНИЙ')
+        await test_f(update, context)
+        await start_notion(update, context)
     message_text = (
         'Приветствую!\n\n'
         'Я буду подсказывать, когда у тебя предстоят занятия.\n'
