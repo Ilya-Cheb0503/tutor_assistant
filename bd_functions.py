@@ -1,6 +1,7 @@
 import aiosqlite
 import asyncio
 
+
 DATABASE_NAME = "students.db"
 
 async def create_database():
@@ -31,6 +32,25 @@ async def get_student(tg_id):
             student = await cursor.fetchone()
             return student
 
+
+async def get_all_students():
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        query = "SELECT * FROM students"
+        students = await database.fetch_all(query)
+    
+        return students
+
+
+# Новая функция для извлечения всех telegram_id
+async def get_all_telegram_ids():
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        async with db.execute('''
+            SELECT tg_id FROM students
+        ''') as cursor:
+            tg_ids = await cursor.fetchall()
+            return [tg_id[0] for tg_id in tg_ids]
+
+
 async def update_student(tg_id, first_name=None, last_name=None):
     async with aiosqlite.connect(DATABASE_NAME) as db:
         if first_name:
@@ -50,6 +70,7 @@ async def delete_student(tg_id):
         ''', (tg_id,))
         await db.commit()
 
+
 async def main():
     # await create_database()
     # await add_student("Иван", "Иванов", "123456")
@@ -63,9 +84,10 @@ async def main():
     # updated_student = await get_student("2091023767")
     # print(f"Обновленный студент: {updated_student}")
 
-    await delete_student("5086356786")
-    deleted_student = await get_student("5086356786")
-    print(f"Удаленный студент: {deleted_student}")
+    # await delete_student("5086356786")
+    # student1 = await get_student("7109530392")
+    students = await get_all_telegram_ids()
+    print(students)
 
 if __name__ == "__main__":
     asyncio.run(main())
