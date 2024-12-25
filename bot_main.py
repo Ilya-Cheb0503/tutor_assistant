@@ -71,10 +71,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_inf = update.effective_user
     user_id = user_inf.id
-    if str(user_id).__eq__('2091023767'):
-        logging.info('ЗАПУСК УВЕДОМЛЕНИЙ')
-        await test_f(update, context)
-        await start_notion(update, context)
+    
     message_text = (
         'Приветствую!\n\n'
         'Я буду подсказывать, когда у тебя предстоят занятия.\n'
@@ -114,6 +111,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await register_proccess(context, update)
 
 
+async def start_notion(update, context):
+    user_id = update.effective_user.id
+    if str(user_id).__eq__('2091023767'):
+
+        logging.info('ЗАПУСКАЕМ рассылку уведомлений')
+
+        await test_f(update, context) # Стартуем уведомления здесь и сейчас, так как в раписании первое только через 30 минут
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждые 30 минут
+        scheduler.start()
+
+        logging.info('ЗАПУСТИЛИ рассылку уведомлений')
+
+    else:
+        pass
+
+
 async def main(telegram_bot_token) -> None:
     
     nest_asyncio.apply()
@@ -121,6 +136,7 @@ async def main(telegram_bot_token) -> None:
     application = Application.builder().token(telegram_bot_token).build()
 
     application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('developer_hand', start_notion))
     application.add_handler(CallbackQueryHandler(button_callback))  # Добавляем обработчик для инлайн кнопок
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND | filters.PHOTO, button_handler))
 
