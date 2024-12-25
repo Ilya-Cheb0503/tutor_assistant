@@ -124,6 +124,7 @@ async def start_notion(update, context):
         scheduler.start()
 
         logging.info('ЗАПУСТИЛИ рассылку уведомлений')
+        await context.bot.send_message(chat_id=user_id, text='Уведомления запущены')
 
     else:
         pass
