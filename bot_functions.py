@@ -33,11 +33,6 @@ months_translation = {
     "December": "Декабря"
 }
 
-async def start_notion(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(test_f, update, context), 'interval', minutes=30)  # Запрашиваем события каждый час
-    scheduler.start()
-
 
 async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
@@ -168,11 +163,32 @@ async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TY
                 notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
         
         elif start_day-day == 0:
-            logging.info('ПРОВЕРКА ЧАСА')
+            logging.info('ПРОВЕРКА СЕГОДНЯ')
 
+            if (start_hour - hours) <= 24 and day_check:
+                logging.info('ПРОВЕРКА СЕГОДНЯ СРАБОТАЛА')
+                hours_delta = start_hour - hours
+                if start_minutes > minutes:
+                    minutes_delta = start_minutes-minutes
+                elif start_minutes < minutes:
+                    hours_delta -= 1
+                    minutes_delta = (60 - minutes) + start_minutes
+                else:
+                    minutes_delta = 0
+                logging.info(f'через {hours_delta} часов и {minutes_delta}')
+                warning_text = (
+                f'❗️ НАПОМИНАЮ ❗\n\n'
+                f'У тебя скоро занятие с преподавателем по Химии.\n'
+                f'Начало в {start_hour_text}:{start_minutes_text}.\n'
+                f'То есть, через {hours_delta} часов и {minutes_delta} минут\n\n'
+                'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
+                )
+                await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
+                notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
+
+            logging.info('ПРОВЕРКА ЧАСА')
             if start_hour - hours == 0 and hour_check:
-                logging.info('ПРОВЕРКА ЧАСА 222')
-                logging.info('one hour')
+                logging.info('ПРОВЕРКА ЧАСА СРАБОТАЛА')
                 minutes_delta = start_minutes-minutes
                 warning_text = (
                 f'❗❗ НАПОМИНАЮ ❗❗\n\n'
