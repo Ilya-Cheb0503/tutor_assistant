@@ -17,6 +17,7 @@ from settings import *
 from bot_functions import *
 from bd_functions import add_student, get_student, update_student
 from registations_proccess import *
+from postboy import *
 from constants import * 
 
 
@@ -72,6 +73,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_inf = update.effective_user
     user_id = user_inf.id
     
+    special_users = [
+        5086356786,
+        2091023767
+    ]
+
     message_text = (
         'Приветствую!\n\n'
         'Я буду подсказывать, когда у тебя предстоят занятия.\n'
@@ -83,6 +89,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             ['Расписание'],
             ['Изменить имя']
         ]
+    if user_id in special_users:
+        keyboard.append(['Рассылка'])
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     student = await get_student(user_id)
@@ -102,6 +111,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     current_text = update.message.text
     if 'reg_status' in context.user_data:
         await register_proccess(context, update)
+    elif 'message_state' in context.user_data: 
+        await send_messages(update, context)
     
     elif current_text.__eq__('Расписание'):
         await hi_again(update, context)
@@ -109,6 +120,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif current_text.__eq__('Изменить имя'):
         context.user_data['reg_status'] = 'start'
         await register_proccess(context, update)
+    
+    elif current_text.__eq__('Рассылка'):
+        await send_messages(update, context)
 
 
 async def start_notion(update, context):
