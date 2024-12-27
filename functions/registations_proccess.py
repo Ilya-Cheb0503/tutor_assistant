@@ -4,6 +4,8 @@ from functions.bd_functions import add_student, get_student, update_student
 from functions.bot_functions import hi_again
 
 
+from constants.constants import *
+
 async def register_proccess(context, update):
     
     reg_status = context.user_data['reg_status']
@@ -67,6 +69,8 @@ async def confirmation_procces(context, update):
             ['Расписание'],
             ['Изменить имя']
         ]
+        if user_id in special_users:
+            keyboard.append(['Рассылка'])
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(f'Регистрация успешно завершена!\nРад знакомству, {name}', reply_markup=reply_markup)
         context.user_data.pop('reg_status')
