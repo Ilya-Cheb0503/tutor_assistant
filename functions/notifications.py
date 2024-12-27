@@ -23,4 +23,4 @@ async def save_notifications(notifications):
     project_folder = await get_current_directory()
     notifications_path = project_folder+NOTIFICATIONS_FILE
     with open(notifications_path, 'w') as file:
-        json.dump(notifications, file)
+        json.dump(notifications, file, ensure_ascii=True, indent=4)
