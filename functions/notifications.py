@@ -3,20 +3,24 @@ import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-# Имя файла для хранения уведомлений
-NOTIFICATIONS_FILE = 'notifications.json'
+from constants.constants import *
+from pwd_generator import get_current_directory
 
 # Инициализация планировщика
 scheduler = AsyncIOScheduler()
 
 # Функция для загрузки уведомлений из файла
 async def load_notifications():
-    if os.path.exists(NOTIFICATIONS_FILE):
-        with open(NOTIFICATIONS_FILE, 'r') as file:
+    project_folder = await get_current_directory()
+    notifications_path = project_folder+NOTIFICATIONS_FILE
+    if os.path.exists(notifications_path):
+        with open(notifications_path, 'r') as file:
             return json.load(file)
     return {}
 
 # Функция для сохранения уведомлений в файл
 async def save_notifications(notifications):
-    with open(NOTIFICATIONS_FILE, 'w') as file:
+    project_folder = await get_current_directory()
+    notifications_path = project_folder+NOTIFICATIONS_FILE
+    with open(notifications_path, 'w') as file:
         json.dump(notifications, file)
