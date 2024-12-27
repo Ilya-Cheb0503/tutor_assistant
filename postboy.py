@@ -74,7 +74,8 @@ async def message_text_sending(update: Update, context: ContextTypes.DEFAULT_TYP
                 await forward_message_with_image(update, context, current_message_text, image_path, user_id)
             except Exception as error:
                 pass
-        await delete_file(image_path)
+        if image_path:
+            await delete_file(image_path)
         context.user_data.pop('message_state')
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text('Рассылка завершена.', reply_markup=reply_markup)
