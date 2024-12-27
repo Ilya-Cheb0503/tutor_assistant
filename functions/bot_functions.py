@@ -200,9 +200,6 @@ async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for student_tg_id in students_id:
         await notifications_process(update, context, notifications, student_tg_id)
         
-    
-    
-
 
 async def get_current_time_formatted():
     # Получаем текущее время
@@ -229,9 +226,6 @@ async def message_creator(start_event, end_event):
     event_start_inf = f'Начало занятия {day_start_inf} в {start_hours}:{start_minutes}'
     event_end_inf = f'И продлится оно до {end_hours}:{end_minutes}'
  
-    
-    
-
     return day_start_inf, event_start_inf, event_end_inf
 
 
@@ -250,9 +244,6 @@ async def time_get(time_dt_f):
     start_month = start_time_dt.strftime("%B")
     start_years = start_time_dt.strftime("%Y")
     start_month_rus = months_translation[start_month]
-    
-    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus} {start_years} года.'
-    # result_start_time = f'{start_hours}:{start_minutes} {start_day} {start_month_rus}.'
     
     inf = {
             'hours': start_hours,
