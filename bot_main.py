@@ -72,11 +72,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_inf = update.effective_user
     user_id = user_inf.id
-    
-    special_users = [
-        5086356786,
-        2091023767
-    ]
 
     message_text = (
         'Приветствую!\n\n'
@@ -108,10 +103,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
     current_text = update.message.text
     if 'reg_status' in context.user_data:
         await register_proccess(context, update)
-    elif 'message_state' in context.user_data: 
+
+    elif 'message_state' in context.user_data and user_id in special_users: 
         await send_messages(update, context)
     
     elif current_text.__eq__('Расписание'):
@@ -121,7 +118,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data['reg_status'] = 'start'
         await register_proccess(context, update)
     
-    elif current_text.__eq__('Рассылка'):
+    elif current_text.__eq__('Рассылка') and user_id in special_users:
         await send_messages(update, context)
 
 
