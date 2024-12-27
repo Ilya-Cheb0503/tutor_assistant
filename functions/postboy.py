@@ -1,6 +1,6 @@
 import os
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from constants.constants import *
@@ -27,7 +27,11 @@ async def send_messages(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def message_text_getting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     context.user_data['message_text'] = None
 
-    await update.message.reply_text('Пришлите мне сообщение, которое хотите разослать:', reply_markup=ReplyKeyboardRemove())
+    keyboard = [
+        ['Отмена'],
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text('Пришлите мне сообщение, которое хотите разослать:', reply_markup=reply_markup)
 
     context.user_data['message_state'] = 'Edited'
 
@@ -41,6 +45,19 @@ async def message_text_confirmation(update: Update, context: ContextTypes.DEFAUL
         ['Нет']
         
     ]
+
+    main_keyboard = [
+            ['Расписание'],
+            ['Изменить имя'],
+            ['Рассылка']
+        ]
+    
+    if message_text.__eq__('Отмена'):    
+        context.user_data.pop('message_state')
+        reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
+        await update.message.reply_text('Отмена рассылки', reply_markup=reply_markup)
+        return
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text('Вы хотите отправить следующее сообщение?', reply_markup=reply_markup)
     await forward_message_with_image(update, context, message_text, image_path, user_id)
