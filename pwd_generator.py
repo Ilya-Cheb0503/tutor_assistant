@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 
@@ -10,6 +11,10 @@ async def get_current_directory():
     return current_directory
 
 # Пример использования
+async def main():
+    pwd = await get_current_directory()
+    print(pwd)
+
+
 if __name__ == "__main__":
-    dir = get_current_directory()
-    print("Текущая директория файла:", dir)
+    asyncio.run(main())
