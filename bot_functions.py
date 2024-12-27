@@ -144,19 +144,11 @@ async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TY
                 logging.info('ПРОВЕУРКА ДНЯ 222')
                 logging.info('one day')
                 hours_delta = (24-hours) + start_hour
-                if start_minutes > minutes:
-                    minutes_delta = start_minutes-minutes
-                elif start_minutes < minutes:
-                    hours_delta -= 1
-                    minutes_delta = (60 - minutes) + start_minutes
-                else:
-                    minutes_delta = 0
 
                 warning_text = (
                 f'❗️ НАПОМИНАЮ ❗\n\n'
                 f'У тебя завтра занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через {hours_delta} часов и {minutes_delta} минут\n\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
@@ -168,19 +160,11 @@ async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TY
             if (start_hour - hours) <= 24 and day_check:
                 logging.info('ПРОВЕРКА СЕГОДНЯ СРАБОТАЛА')
                 hours_delta = start_hour - hours
-                if start_minutes > minutes:
-                    minutes_delta = start_minutes-minutes
-                elif start_minutes < minutes:
-                    hours_delta -= 1
-                    minutes_delta = (60 - minutes) + start_minutes
-                else:
-                    minutes_delta = 0
-                logging.info(f'через {hours_delta} часов и {minutes_delta}')
+
                 warning_text = (
                 f'❗️ НАПОМИНАЮ ❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через {hours_delta} часов и {minutes_delta} минут\n\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
@@ -189,12 +173,10 @@ async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TY
             logging.info('ПРОВЕРКА ЧАСА')
             if start_hour - hours == 1 and hour_check:
                 logging.info('ПРОВЕРКА ЧАСА СРАБОТАЛА')
-                minutes_delta = (60 - minutes) + start_minutes
                 warning_text = (
                 f'❗❗ НАПОМИНАЮ ❗❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через 1 час и {minutes_delta} минут\n\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
@@ -202,12 +184,10 @@ async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TY
             
             elif start_hour - hours == 0 and hour_check:
                 logging.info('ПРОВЕРКА ЧАСА СРАБОТАЛА')
-                minutes_delta = start_minutes-minutes
                 warning_text = (
                 f'❗❗ НАПОМИНАЮ ❗❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
-                f'То есть, через {minutes_delta} минут\n\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
                 )
                 await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
