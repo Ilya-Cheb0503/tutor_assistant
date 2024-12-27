@@ -74,6 +74,7 @@ async def message_text_sending(update: Update, context: ContextTypes.DEFAULT_TYP
                 await forward_message_with_image(update, context, current_message_text, image_path, user_id)
             except Exception as error:
                 pass
+        await delete_file(image_path)
         context.user_data.pop('message_state')
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text('Рассылка завершена.', reply_markup=reply_markup)
@@ -85,7 +86,6 @@ async def message_text_sending(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def download_message_with_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст сообщения
-    # message_text = context.user_data.get('current_text')
     message_text = update.message.text
     file_path = None
 
@@ -117,3 +117,15 @@ async def forward_message_with_image(update: Update, context: ContextTypes.DEFAU
         # Если изображения нет, просто отправляем текст
         await context.bot.send_message(chat_id=user_id, text=message_text, parse_mode='Markdown')
 
+
+async def delete_file(file_path):
+    """Удаляет файл по указанному пути, если он существует."""
+    try:
+        # Проверяем, существует ли файл
+        if os.path.isfile(file_path):
+            os.remove(file_path)  # Удаляем файл
+            print(f"Файл '{file_path}' успешно удален.")
+        else:
+            print(f"Файл '{file_path}' не найден.")
+    except Exception as e:
+        print(f"Произошла ошибка при удалении файла: {e}")
