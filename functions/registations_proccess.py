@@ -1,76 +1,95 @@
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
+from constants.constants import *
 from functions.bd_functions import add_student, get_student, update_student
 from functions.bot_functions import hi_again
+from project_config.wrapper import exception_handler
+from project_config.settings import *
 
-
-from constants.constants import *
-
-async def register_proccess(context, update):
+@exception_handler
+async def register_process(context, update):
+    logging.info("Запуск процесса регистрации.")
     
-    reg_status = context.user_data['reg_status']
+    reg_status = context.user_data.get('reg_status', 'start')
 
     register_status = {
         'start': name_asking,
         'correction': correction_ask,
-        'confirmation': confirmation_procces,
+        'confirmation': confirmation_process,
     }
 
-    step = register_status[reg_status]
+    step = register_status.get(reg_status)
+    if step:
+        await step(context, update)
+    else:
+        logging.error(f"Неизвестный статус регистрации: {reg_status}.")
+        await update.message.reply_text("Произошла ошибка. Пожалуйста, начните регистрацию заново.")
 
-    await step(context, update)
 
-
+@exception_handler
 async def name_asking(context, update):
+    logging.info("Запрос имени и фамилии у пользователя.")
+    
     context.user_data['reg_status'] = 'correction'
-    user_id = update.effective_user.id
     ask_text = (
         'Сперва укажите пожалуйста свои настоящие Имя и Фамилию\n'
         'Пример: Александр Пушкин'
     )
     await update.message.reply_text(ask_text, reply_markup=ReplyKeyboardRemove())
-    # await context.bot.send_message(chat_id=user_id, text=ask_text)
-    
 
+
+@exception_handler
 async def correction_ask(context, update):
+    logging.info("Запрос подтверждения имени и фамилии.")
+    
     context.user_data['reg_status'] = 'confirmation'
-    # user_id = update.effective_user.id
     current_text = update.message.text
-    name, sername = current_text.split(' ')
-    context.user_data['full_name'] = (name, sername)
-    correction_ask = (
+    
+    try:
+        name, surname = current_text.split(' ')
+        context.user_data['full_name'] = (name, surname)
+    except ValueError:
+        await update.message.reply_text("Пожалуйста, введите имя и фамилию через пробел.")
+        return await name_asking(context, update)
+
+    correction_ask_text = (
         f'Твое имя: {name}\n'
-        f'А фамилия: {sername}\n'
+        f'А фамилия: {surname}\n'
         'Верно?'
     )
 
-    # await context.bot.send_message(chat_id=user_id, text=correction_ask)
     keyboard = [
         ['Да'],
         ['Нет']
-        
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text(correction_ask, reply_markup=reply_markup)
+    await update.message.reply_text(correction_ask_text, reply_markup=reply_markup)
 
 
-async def confirmation_procces(context, update):
+@exception_handler
+async def confirmation_process(context, update):
+    logging.info("Подтверждение регистрации.")
+    
     current_text = update.message.text
-    if current_text.__eq__('Да'):
+    if current_text == 'Да':
         user_id = update.effective_user.id
-        name, sername = context.user_data['full_name']
+        name, surname = context.user_data['full_name']
 
         student = await get_student(user_id)
         if student:
-            await update_student(user_id, name, sername)
+            await update_student(user_id, name, surname)
+            logging.info(f"Данные студента обновлены: {name} {surname}.")
         else:
-            await add_student(name, sername, user_id)
+            await add_student(name, surname, user_id)
+            logging.info(f"Новый студент добавлен: {name} {surname}.")
+
         keyboard = [
             ['Расписание'],
             ['Изменить имя']
         ]
         if user_id in special_users:
             keyboard.append(['Рассылка'])
+        
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(f'Регистрация успешно завершена!\nРад знакомству, {name}', reply_markup=reply_markup)
         context.user_data.pop('reg_status')

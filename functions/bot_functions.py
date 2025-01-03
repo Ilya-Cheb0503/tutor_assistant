@@ -11,6 +11,7 @@ from functions.bd_functions import *
 from functions.notifications import *
 from project_config.settings import *
 from pwd_generator import get_current_directory
+from project_config.wrapper import exception_handler
 
 months_translation = {
     "January": "Января",
@@ -28,31 +29,33 @@ months_translation = {
 }
 
 
+@exception_handler
 async def hi_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.info("Отправка приветственного сообщения пользователю.")
     
     keyboard = [
         [InlineKeyboardButton('Ближайшее занятие', callback_data='near_lesson')],
     ]
 
-    # Создаем разметку для кнопок
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Отправляем сообщение с инлайн кнопками
-
     second_message = 'Чтобы узнать дату ближайшего занятия, нажми на кнопку ниже'
+    
     await update.message.reply_text(second_message, reply_markup=reply_markup)
+    logging.info("Приветственное сообщение успешно отправлено.")
 
-# Попытка получить события из календаря
+
+@exception_handler
 async def get_kids_lessons(time_period, student_tg_id):
+    logging.info(f"Получение уроков для студента с tg_id: {student_tg_id} на период {time_period} дней.")
+    
     project_directory = await get_current_directory()
     try:
-        credentials = service_account.Credentials.from_service_account_file(project_directory+CREDENTIALS_FILE)
+        credentials = service_account.Credentials.from_service_account_file(project_directory + CREDENTIALS_FILE)
         service = build('calendar', 'v3', credentials=credentials)
 
-        # Устанавливаем временные рамки для запроса (текущая дата и дата через 7 дней)
         now = (datetime.datetime.utcnow() + datetime.timedelta(hours=3)).isoformat() + '+03:00'  # Текущая дата и время в формате UTC+3
         week_later = (datetime.datetime.utcnow() + datetime.timedelta(days=time_period, hours=3)).isoformat() + '+03:00'
-        # logging.info(f'ВРЕМЯ {now}')
-        # Получаем события только на неделю вперед
+        
         events_result = service.events().list(
             calendarId=CALENDAR_ID,
             timeMin=now,
@@ -64,23 +67,24 @@ async def get_kids_lessons(time_period, student_tg_id):
         events = events_result.get('items', [])
         
         student = await get_student(student_tg_id)
-        # logging.info(f'STUDENT {student}')
+        if not student:
+            logging.warning(f"Студент с tg_id: {student_tg_id} не найден.")
+            return (None, 0)
+
         first_name = student[1]
         last_name = student[2]
 
         if not events:
+            logging.info("Нет запланированных уроков.")
             return (None, 0)
         else:
             events_list = []
             events_count = 0
             for event in events:
                 event_name = event['summary']
-                # logging.info(f'event = {event_name}')
 
                 if 'УРОК' in event_name and (first_name and last_name) in event_name:
                     kid_name = event_name.split('; ')[1]
-                    
-                    logging.info(f'kid_name {kid_name}')
                     
                     start_time = event['start']['dateTime']
                     end_time = event['end']['dateTime']
@@ -92,128 +96,133 @@ async def get_kids_lessons(time_period, student_tg_id):
 
                     events_list.append(full_inf)
                     events_count += 1
-        logging.info(f'RETURN {events_list} {events_count}')
-        return [events_list, events_count]
-
+            
+            logging.info(f"Найдено {events_count} уроков для студента {first_name} {last_name}.")
+            return [events_list, events_count]
 
     except Exception as e:
-        logging.error(f'ошибка {e}')
+        logging.error(f'Ошибка при получении уроков: {e}')
+        return (None, 0)
 
 
+@exception_handler
 async def notifications_process(update: Update, context: ContextTypes.DEFAULT_TYPE, notifications_json, student_tg_id):
+    logging.info(f"Обработка уведомлений для студента с tg_id: {student_tg_id}.")
+    
     kids_lessons_if, lessons_count = await get_kids_lessons(time_period=1, student_tg_id=student_tg_id)
-    if lessons_count.__eq__(0):
-        pass
-    else:
-        day, hours, minutes = await get_current_time_formatted()
-        user_id_str = str(student_tg_id)
+    
+    if lessons_count == 0:
+        logging.info("Нет запланированных уроков для уведомления.")
+        return  # Если уроков нет, выходим из функции
+
+    day, hours, minutes = await get_current_time_formatted()
+    user_id_str = str(student_tg_id)
+    
+    if user_id_str not in notifications_json:
+        notifications_json[user_id_str] = {
+            'warning_day_message': None,
+            'warning_hour_message': None
+        }
         
-        if user_id_str not in notifications_json:
-            logging.info(f'Хуйня какая-то: {notifications_json},\n{student_tg_id},\n{student_tg_id not in notifications_json}')
-            notifications_json[user_id_str] = {
-                'warning_day_message': None,
-                'warning_hour_message': None
-            }
-            
-        warnings = notifications_json[user_id_str]
-        warning_hour_message = warnings['warning_hour_message']
-        warning_day_message = warnings['warning_day_message']
+    warnings = notifications_json[user_id_str]
+    warning_hour_message = warnings['warning_hour_message']
+    warning_day_message = warnings['warning_day_message']
 
-        start_inf = kids_lessons_if[0][0]
-        logging.info(f'DAY {start_inf}')
-        start_day = int(start_inf['day'])
-        
-        start_hour_text = start_inf['hours']
-        start_hour = int(start_hour_text)
-        start_minutes_text = start_inf['minutes']
-        start_minutes = int(start_minutes_text)
+    start_inf = kids_lessons_if[0][0]
+    start_day = int(start_inf['day'])
+    
+    start_hour_text = start_inf['hours']
+    start_hour = int(start_hour_text)
+    start_minutes_text = start_inf['minutes']
+    start_minutes = int(start_minutes_text)
 
-        time_lesson = f'{start_day}{start_hour}'
+    time_lesson = f'{start_day}{start_hour}'
 
-        day_check = time_lesson.__ne__(warning_day_message)
-        hour_check = time_lesson.__ne__(warning_hour_message)
+    day_check = time_lesson != warning_day_message
+    hour_check = time_lesson != warning_hour_message
 
-        if start_day-day == 1:
-            logging.info('ПРОВЕРКА ДНЯ')
-            if (24-hours) + start_hour <= 24 and day_check:
-                logging.info('ПРОВЕУРКА ДНЯ 222')
-                logging.info('one day')
-                hours_delta = (24-hours) + start_hour
+    if start_day - day == 1:
+        if (24 - hours) + start_hour <= 24 and day_check:
+            hours_delta = (24 - hours) + start_hour
 
-                warning_text = (
+            warning_text = (
                 f'❗️ НАПОМИНАЮ ❗\n\n'
                 f'У тебя завтра занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
-                )
-                await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
-                notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
-        
-        elif start_day-day == 0:
-            logging.info('ПРОВЕРКА СЕГОДНЯ')
+            )
+            await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
+            notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
+            logging.info(f"Отправлено уведомление о занятии на завтра для студента {student_tg_id}.")
 
-            if (start_hour - hours) <= 24 and day_check:
-                logging.info('ПРОВЕРКА СЕГОДНЯ СРАБОТАЛА')
-                hours_delta = start_hour - hours
+    elif start_day - day == 0:
+        if (start_hour - hours) <= 24 and day_check:
+            hours_delta = start_hour - hours
 
-                warning_text = (
+            warning_text = (
                 f'❗️ НАПОМИНАЮ ❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
-                )
-                await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
-                notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
+            )
+            await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
+            notifications_json[user_id_str]['warning_day_message'] = f'{start_day}{start_hour}' 
+            logging.info(f"Отправлено уведомление о занятии сегодня для студента {student_tg_id}.")
 
-            logging.info('ПРОВЕРКА ЧАСА')
-            if start_hour - hours == 1 and hour_check:
-                logging.info('ПРОВЕРКА ЧАСА СРАБОТАЛА')
-                warning_text = (
+        if start_hour - hours == 1 and hour_check:
+            warning_text = (
                 f'❗❗ НАПОМИНАЮ ❗❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
-                )
-                await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
-                notifications_json[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}'
-            
-            elif start_hour - hours == 0 and hour_check:
-                logging.info('ПРОВЕРКА ЧАСА СРАБОТАЛА')
-                warning_text = (
+            )
+            await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
+            notifications_json[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}' 
+            logging.info(f"Отправлено уведомление за час до занятия для студента {student_tg_id}.")
+        
+        elif start_hour - hours == 0 and hour_check:
+            warning_text = (
                 f'❗❗ НАПОМИНАЮ ❗❗\n\n'
                 f'У тебя скоро занятие с преподавателем по Химии.\n'
                 f'Начало в {start_hour_text}:{start_minutes_text}.\n'
                 'Если ты ещё не выполнил ДЗ, то также напоминаю о его выполнении.'
-                )
-                await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
-                notifications_json[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}' 
+            )
+            await context.bot.send_message(chat_id=student_tg_id, text=warning_text)
+            notifications_json[user_id_str]['warning_hour_message'] = f'{start_day}{start_hour}' 
+            logging.info(f"Отправлено уведомление в момент занятия для студента {student_tg_id}.")
 
     await save_notifications(notifications_json)
+    logging.info("Уведомления успешно сохранены.")
 
+
+@exception_handler
 async def test_f(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info("Запуск тестовой функции для обработки уведомлений.")
     
     students_id = await get_all_telegram_ids()
-
-    logging.info('Проверка связи')
-    
     notifications = await load_notifications()
+    
     for student_tg_id in students_id:
+        logging.info(f"Обработка уведомлений для студента с tg_id: {student_tg_id}.")
         await notifications_process(update, context, notifications, student_tg_id)
-        
 
+
+@exception_handler
 async def get_current_time_formatted():
-    # Получаем текущее время
     now = datetime.datetime.now()
     
-    # Форматируем время в нужный формат
     day = int(now.strftime("%d"))
     hours = int(now.strftime("%H"))
     minutes = int(now.strftime("%M"))
     
+    logging.info(f"Текущая дата и время: {day} {hours}:{minutes}.")
     return day, hours, minutes
 
 
+@exception_handler
 async def message_creator(start_event, end_event):
+    logging.info("Создание сообщения о занятии.")
+    
     start_day = start_event['day']
     start_month = start_event['month']
     start_hours = start_event['hours']
@@ -225,46 +234,51 @@ async def message_creator(start_event, end_event):
     day_start_inf = f'{start_day} {start_month}'
     event_start_inf = f'Начало занятия {day_start_inf} в {start_hours}:{start_minutes}'
     event_end_inf = f'И продлится оно до {end_hours}:{end_minutes}'
- 
+    
+    logging.info("Сообщение о занятии успешно создано.")
     return day_start_inf, event_start_inf, event_end_inf
 
 
+@exception_handler
 async def time_get(time_dt_f):
-
-                    
+    logging.info(f"Парсинг времени из строки: {time_dt_f}.")
+    
     start_time_dt = datetime.datetime.fromisoformat(time_dt_f)
 
     start_hours = start_time_dt.strftime("%H")
     start_minutes = start_time_dt.strftime("%M")
     
-    start_day = start_time_dt.strftime("%d")
-    if start_day[0].__eq__('0'):
-        start_day = start_day[1]
-
+    start_day = start_time_dt.strftime("%d").lstrip('0')  # Убираем ведущий ноль
     start_month = start_time_dt.strftime("%B")
     start_years = start_time_dt.strftime("%Y")
     start_month_rus = months_translation[start_month]
     
     inf = {
-            'hours': start_hours,
-            'minutes': start_minutes,
-            'day': start_day,
-            'month': start_month_rus,
+        'hours': start_hours,
+        'minutes': start_minutes,
+        'day': start_day,
+        'month': start_month_rus,
     }
+    
+    logging.info(f"Парсинг времени завершен: {inf}.")
     return inf
 
 
+@exception_handler
 async def parse_date(date_str):
+    logging.info(f"Парсинг даты из строки: {date_str}.")
+    
     months = {
         'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04',
         'мая': '05', 'июня': '06', 'июля': '07', 'августа': '08',
         'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12'
     }
     
-    # Разделяем дату и время
     date_part, time_part = date_str.split(', ')
     day, month_name = date_part.split()
     month = months[month_name]
     
-    # Формируем строку в формате ISO 8601
-    return f"2024-{month}-{int(day):02d}T{time_part}:00"
+    parsed_date = f"2024-{month}-{int(day):02d}T{time_part}:00"
+    logging.info(f"Парсинг даты завершен: {parsed_date}.")
+    
+    return parsed_date
