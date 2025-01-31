@@ -83,7 +83,7 @@ async def get_kids_lessons(time_period, student_tg_id):
             for event in events:
                 event_name = event['summary']
 
-                if 'УРОК' in event_name and (first_name and last_name) in event_name:
+                if ('УРОК' in event_name) and (first_name in event_name) and (last_name in event_name):
                     kid_name = event_name.split('; ')[1]
                     
                     start_time = event['start']['dateTime']
