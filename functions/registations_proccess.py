@@ -91,7 +91,7 @@ async def confirmation_process(context, update):
             keyboard.append(['Рассылка'])
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(f'Регистрация успешно завершена!\nРад знакомству, {name}', reply_markup=reply_markup)
+        await update.message.reply_text(f'Регистрация успешно завершена!\nРад знакомству, {name} {surname}\n\nДля окончания регистрации необходимо переслать это сообщение Ринату Бахтияровичу.', reply_markup=reply_markup)
         context.user_data.pop('reg_status')
         await hi_again(update, context)
     else:

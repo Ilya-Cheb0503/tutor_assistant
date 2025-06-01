@@ -16,4 +16,5 @@ handler.setFormatter(formatter)
 logging.basicConfig(
     level=logging.INFO,
     handlers=[handler],
+    encoding='utf-8'
 )
